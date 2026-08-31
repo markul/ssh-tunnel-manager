@@ -1,4 +1,5 @@
 import SwiftUI
+import LocalWebProxy
 
 @MainActor
 struct TunnelDetailView: View {
@@ -21,6 +22,7 @@ struct TunnelDetailView: View {
         case name, host, port, identityFile, alias
         case mappingLocalHost(UUID), mappingLocalPort(UUID)
         case mappingRemoteHost(UUID), mappingRemotePort(UUID)
+        case mappingWebDomain(UUID)
         case connectTimeout, aliveInterval, aliveCountMax
         case proxyJump, extraOptions
         case localCommand
@@ -253,6 +255,19 @@ struct TunnelDetailView: View {
                 Text("Each mapping adds a -L (local forward), -R (remote forward), or -D (SOCKS proxy) flag to the SSH command.")
             }
 
+            if editedTunnel.portMappings.contains(where: { !($0.webDomain ?? "").isEmpty }) {
+                Section {
+                    Text(tunnelManager.webProxy.status).font(.callout)
+                    if tunnelManager.webProxy.hostsNeedUpdate {
+                        Text("Apply hostname changes in Preferences → Web domains before opening a new domain.")
+                            .font(.caption).foregroundStyle(.orange)
+                    }
+                    ForEach(tunnelManager.webProxy.issues, id: \.self) { issue in
+                        Text(issue).font(.caption).foregroundStyle(.red)
+                    }
+                } header: { Text("Web domains") }
+            }
+
             Section {
                 Toggle("Auto-connect on launch", isOn: $editedTunnel.autoConnect)
             } header: {
@@ -367,6 +382,15 @@ struct TunnelDetailView: View {
                                 value: "server listens on \(mapping.remoteHost):\(mapping.remotePort) → \(mapping.localHost):\(mapping.localPort) here"
                             )
                         case .local:
+                            if let input = mapping.webDomain,
+                               let domain = try? WebDomain.normalize(input) {
+                                HStack {
+                                    UsageRow(label: "Web", value: "http://\(domain)")
+                                    Button("Open") {
+                                        if let url = URL(string: "http://\(domain)") { NSWorkspace.shared.open(url) }
+                                    }
+                                }
+                            }
                             UsageRow(
                                 label: ":\(mapping.localPort)",
                                 value: "http://\(mapping.localHost):\(mapping.localPort)"
@@ -605,6 +629,20 @@ struct PortMappingEditor: View {
             }
             .pickerStyle(.segmented)
             .labelsHidden()
+
+            if mapping.forward == .local {
+                TextField("Web domain (optional)", text: Binding(
+                    get: { mapping.webDomain ?? "" },
+                    set: { mapping.webDomain = $0.isEmpty ? nil : $0 }
+                ), prompt: Text("research-3600.test"))
+                .textFieldStyle(.roundedBorder)
+                .focused($focusedField, equals: .mappingWebDomain(mapping.id))
+                Text("HTTP only on this Mac. Save, then apply hostnames in Preferences → Web domains. Leave blank to use the port directly.")
+                    .font(.caption).foregroundStyle(.secondary)
+                if let error = WebProxyManager.validationError(for: mapping) {
+                    Text(error).font(.caption).foregroundStyle(.red)
+                }
+            }
 
             LabeledContent(mapping.forward == .dynamic ? "Listen" : "Local") {
                 HStack(spacing: 4) {

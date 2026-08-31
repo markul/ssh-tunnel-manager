@@ -175,16 +175,24 @@ private func killProcessGroup() {
 @Observable
 @MainActor
 class TunnelManager {
-    var items: [SidebarItem] = []
+    let webProxy = WebProxyManager()
+    var items: [SidebarItem] = [] { didSet { refreshWebProxy() } }
     var tunnels: [Tunnel] { items.tunnels }
-    private var processIDs: [UUID: Int32] = [:]
+    private var processIDs: [UUID: Int32] = [:] { didSet { refreshWebProxy() } }
+    private var processes: [UUID: Process] = [:]
     private var connectionStatus: [UUID: ConnectionStatus] = [:]
     private var shouldBeConnected: Set<UUID> = [] // Tracks desired state for reconnection
     private var connectingInFlight: Set<UUID> = [] // Tunnels whose SSH process is mid-startup
-    private var establishedTunnels: Set<UUID> = [] // Connections that survived the grace period (gates feedback)
+    private var startupTokens: [UUID: UUID] = [:]
+    private var establishedTunnels: Set<UUID> = [] { didSet { refreshWebProxy() } }
     private var lastErrors: [UUID: String] = [:] // Why each tunnel last failed/dropped — sticky until it establishes or is stopped
     private let configStore = ConfigStore()
     private var reconnectTask: Task<Void, Never>?
+
+    private func refreshWebProxy() {
+        let livePIDs = processIDs.filter { processes[$0.key]?.isRunning == true }
+        webProxy.configure(tunnels: tunnels, established: establishedTunnels, processIDs: livePIDs)
+    }
 
     init() {
         // Kill any orphaned processes from previous session
@@ -242,6 +250,8 @@ class TunnelManager {
         let id = tunnel.id
         guard !connectingInFlight.contains(id) else { return }
         connectingInFlight.insert(id)
+        let token = UUID()
+        startupTokens[id] = token
         connectionStatus[id] = .connecting
 
         let tunnelCopy = tunnel
@@ -259,6 +269,8 @@ class TunnelManager {
             }
 
             await MainActor.run {
+                guard self.startupTokens[id] == token else { return }
+                self.startupTokens.removeValue(forKey: id)
                 self.startSSHProcess(tunnel: tunnelCopy)
             }
         }
@@ -474,10 +486,20 @@ class TunnelManager {
         // buffer), so draining it once at exit can't deadlock the connection.
         let errorPipe = Pipe()
         process.standardError = errorPipe
+        process.terminationHandler = { [weak self] process in
+            let pid = process.processIdentifier
+            Task { @MainActor [weak self] in
+                guard let self, self.processIDs[tunnel.id] == pid else { return }
+                // Revoke web access as soon as ssh exits, even if a LocalCommand
+                // descendant still holds stderr open and delays diagnostic collection.
+                self.refreshWebProxy()
+            }
+        }
 
         do {
             try process.run()
             let pid = process.processIdentifier
+            processes[tunnel.id] = process
             processIDs[tunnel.id] = pid
             connectionStatus[tunnel.id] = .connected
 
@@ -500,7 +522,7 @@ class TunnelManager {
             let probePort = tunnel.locallyBoundPorts.first
             Task { [weak self] in
                 if let probePort {
-                    for _ in 0..<150 { // up to ~30s while the process stays alive
+                    while true { // Slow authentication must not permanently disable web domains.
                         try? await Task.sleep(for: .milliseconds(200))
                         let isUp = await Task.detached { isLocalPortOpen(probePort) }.value
                         guard let self, self.processIDs[tunnelID] == pid else { return }
@@ -525,7 +547,7 @@ class TunnelManager {
                 let bySignal = process.terminationReason == .uncaughtSignal
                 let stderr = String(decoding: errorData, as: UTF8.self)
                 await MainActor.run { [weak self] in
-                    self?.handleProcessTermination(tunnelID: tunnelID, stderr: stderr, exitCode: exitCode, terminatedBySignal: bySignal)
+                    self?.handleProcessTermination(tunnelID: tunnelID, pid: pid, stderr: stderr, exitCode: exitCode, terminatedBySignal: bySignal)
                 }
             }
         } catch {
@@ -554,7 +576,10 @@ class TunnelManager {
         }
     }
 
-    private func handleProcessTermination(tunnelID: UUID, stderr: String, exitCode: Int32, terminatedBySignal: Bool) {
+    private func handleProcessTermination(tunnelID: UUID, pid: Int32, stderr: String, exitCode: Int32, terminatedBySignal: Bool) {
+        // A delayed exit from the old SSH process must not revoke its replacement's routes.
+        guard processIDs[tunnelID] == pid else { return }
+        processes.removeValue(forKey: tunnelID)
         processIDs.removeValue(forKey: tunnelID)
         let wasEstablished = establishedTunnels.remove(tunnelID) != nil
         // A clean exit (status 0) or a process we/something signalled, with no
@@ -639,6 +664,7 @@ class TunnelManager {
         // Remove from auto-reconnect set and cancel any in-flight startup
         shouldBeConnected.remove(tunnel.id)
         connectingInFlight.remove(tunnel.id)
+        startupTokens.removeValue(forKey: tunnel.id)
         establishedTunnels.remove(tunnel.id)
         // A deliberate stop is not a failure — clear any recorded reason.
         lastErrors.removeValue(forKey: tunnel.id)
@@ -656,6 +682,7 @@ class TunnelManager {
             kill(pid, SIGKILL) // Force kill if still alive
         }
 
+        processes.removeValue(forKey: tunnel.id)
         processIDs.removeValue(forKey: tunnel.id)
         connectionStatus[tunnel.id] = .disconnected
         updatePIDFile()
@@ -798,6 +825,14 @@ class TunnelManager {
         var clone = tunnel
         clone.id = UUID()
         clone.name = "\(tunnel.name) (Copy)"
+        // A hostname must identify exactly one mapping. Cloning must not disable
+        // the original tunnel's working domain through a duplicate assignment.
+        clone.portMappings = clone.portMappings.map { mapping in
+            var copy = mapping
+            copy.id = UUID()
+            copy.webDomain = nil
+            return copy
+        }
         if let index = items.firstIndex(where: { $0.tunnel?.id == tunnel.id }) {
             items.insert(.tunnel(clone), at: index + 1)
         } else {
@@ -809,11 +844,13 @@ class TunnelManager {
 
     /// Disconnect all tunnels - called on app termination
     func disconnectAll() {
+        webProxy.stop()
         // Stop reconnection monitor
         reconnectTask?.cancel()
         reconnectTask = nil
         shouldBeConnected.removeAll()
         connectingInFlight.removeAll()
+        startupTokens.removeAll()
         establishedTunnels.removeAll()
 
         let pids = Array(processIDs.values)
@@ -828,6 +865,7 @@ class TunnelManager {
             killSSHProcessesForTunnel(tunnel)
         }
 
+        processes.removeAll()
         processIDs.removeAll()
         for tunnel in tunnels {
             connectionStatus[tunnel.id] = .disconnected

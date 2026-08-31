@@ -190,6 +190,7 @@ struct DividerDetailView: View {
 /// always-visible UI stays a single button instead of a row of checkboxes.
 @MainActor
 struct AppPreferencesView: View {
+    @State private var showWebDomains = false
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
     @State private var soundsEnabled = TunnelSound.isEnabled
     @State private var notificationsEnabled = TunnelNotification.isEnabled
@@ -212,6 +213,11 @@ struct AppPreferencesView: View {
                         launchAtLogin = !newValue
                     }
                 }
+
+            Divider()
+
+            Button("Web domains…") { showWebDomains = true }
+                .popover(isPresented: $showWebDomains) { WebDomainsView() }
 
             Divider()
 

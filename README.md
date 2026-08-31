@@ -42,9 +42,10 @@ This app solves that. Configure once, connect with one click.
 - **Port-conflict guard** — warns when two tunnels want the same local port and stops them from clobbering each other
 - **Per-tunnel tuning** — `ConnectTimeout`, keepalive, compression, "survive brief network drops", host-key options, and a free-text field for any other ssh flags
 - **SSH config aliases** — reuse hosts from your `~/.ssh/config`
+- **Local web domains** — open a forwarded HTTP service as `http://research-3600.test`, without a port in the URL
 - **Launch at login** — start tunnels when your Mac boots
 - **Auto-connect** — mark tunnels to connect automatically on app launch
-- **Native macOS** — uses system SSH, no bundled binaries
+- **Native macOS** — uses system SSH and an integrated HTTP proxy; includes a small port authorization helper
 
 ## Alternatives
 
@@ -91,6 +92,19 @@ xcodebuild -scheme SSHTunnelManager -configuration Release
 
 Requires Xcode 15+ and macOS 14+.
 
+The integrated HTTP proxy is built from the local `SSHTunnelManager/LocalWebProxy`
+Swift package and uses pinned SwiftNIO dependencies. Xcode resolves them on the
+first build. No Caddy installation or separate proxy process is needed. To run
+the proxy and hostname-management tests independently:
+
+```bash
+cd SSHTunnelManager/LocalWebProxy
+swift test
+```
+
+Third-party licenses and attribution are included in the app's
+`ThirdPartyNotices.txt` resource.
+
 ## Usage
 
 1. Click the network icon in menu bar
@@ -98,6 +112,54 @@ Requires Xcode 15+ and macOS 14+.
 3. Toggle tunnels on/off from the menu bar
 
 Config is stored in `~/Library/Application Support/SSHTunnelManager/tunnels.json`.
+
+### Local web domains (HTTP only)
+
+For an existing local forward such as Mac `127.0.0.1:55355` → server
+`127.0.0.1:33533`:
+
+1. Enter `research-3600.test` in the mapping's **Web domain** field and save.
+2. Open **Preferences → Web domains**. If macOS restricts port 80, click
+   **Enable HTTP and apply hostnames…**; otherwise click **Apply hostnames…**.
+   Approve the macOS administrator prompt. Only the app's marked block in
+   `/etc/hosts` is updated; unrelated entries are preserved and conflicts rejected.
+3. Connect the SSH tunnel and open **http://research-3600.test**.
+
+The proxy listens only on `127.0.0.1:80`, routing approved hostnames to their
+existing local-forward ports. It does not publish services on your LAN or the
+internet. The SSH tunnel still encrypts traffic between the Mac and SSH server.
+HTTPS, certificates, `.local`/Bonjour advertising, remote-forward aliases, and
+SOCKS aliases are not part of this feature. Use the explicit `http://` URL if
+your browser tries HTTPS first.
+
+Port 80 must be available; another web server on that port prevents startup. The
+app reports the failure in Web domains and offers **Retry proxy**. It never kills
+the other server. On Macs that restrict low ports, a small bundled native helper
+binds an app-created socket only to `127.0.0.1:80` after administrator authorization
+and immediately exits. The app retains the socket. No privileged daemon is installed;
+HTTP processing remains inside the app. After HTTP is enabled once, the app remembers
+the setting and requests port authorization automatically on later launches. macOS
+may still show its administrator prompt, or reuse a recent authorization. Cancelling
+does not cause repeated prompts during that session; use **Enable HTTP** to retry.
+Automatic authorization can be turned off in **Preferences → Web domains**. Existing
+setups with an app-managed hosts block are remembered when upgrading. The mapped SSH
+listener must accept connections on IPv4 loopback (local host `127.0.0.1`,
+`localhost`, or `0.0.0.0`), and its port cannot be 80. Domains must be unique.
+
+Disconnected/connecting tunnels return HTTP 503; unknown domains return 404.
+Changing a mapping or stopping its tunnel closes existing proxy connections.
+Ordinary HTTP/1.1 uses one request per connection, with streaming uploads and
+responses; WebSocket upgrade streams are supported. Idle streams time out after
+five minutes. Backend applications that enforce allowed hostnames, generate
+absolute URLs, set cookie domains, or validate origins may need their own
+configuration updated for the new `.test` name. The proxy preserves the Host
+header and does not rewrite HTML, redirects, cookie domains, or CORS policies.
+
+Editing a web domain does not restart its SSH connection. Hostname edits are
+applied only when you click **Apply hostnames…**. To clean up, clear the web-domain
+fields, save, then apply hostnames again; this removes the managed block when no
+domains remain. The block persists across app restarts and is not automatically
+removed when the app quits or is uninstalled.
 
 ### SOCKS proxy
 

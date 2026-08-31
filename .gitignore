@@ -22,3 +22,7 @@ dist/
 
 # JetBrains
 .idea/
+
+# Swift Package Manager
+.build/
+.swiftpm/

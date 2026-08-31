@@ -16,6 +16,8 @@ struct PortMapping: Identifiable, Codable, Hashable {
     var localPort: Int
     var remoteHost: String
     var remotePort: Int
+    /// Optional HTTP alias for a local forward; independent of the SSH invocation.
+    var webDomain: String?
 
     init(
         id: UUID = UUID(),
@@ -23,7 +25,8 @@ struct PortMapping: Identifiable, Codable, Hashable {
         localHost: String = "127.0.0.1",
         localPort: Int = 8080,
         remoteHost: String = "127.0.0.1",
-        remotePort: Int = 8080
+        remotePort: Int = 8080,
+        webDomain: String? = nil
     ) {
         self.id = id
         self.forward = forward
@@ -31,10 +34,11 @@ struct PortMapping: Identifiable, Codable, Hashable {
         self.localPort = localPort
         self.remoteHost = remoteHost
         self.remotePort = remotePort
+        self.webDomain = webDomain
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, forward, localHost, localPort, remoteHost, remotePort
+        case id, forward, localHost, localPort, remoteHost, remotePort, webDomain
     }
 
     // Custom decoder so older configs without `forward` default to .local.
@@ -46,6 +50,12 @@ struct PortMapping: Identifiable, Codable, Hashable {
         localPort = try c.decode(Int.self, forKey: .localPort)
         remoteHost = try c.decode(String.self, forKey: .remoteHost)
         remotePort = try c.decode(Int.self, forKey: .remotePort)
+        webDomain = try c.decodeIfPresent(String.self, forKey: .webDomain)
+    }
+
+    func hasSameConnection(as other: PortMapping) -> Bool {
+        forward == other.forward && localHost == other.localHost && localPort == other.localPort
+            && remoteHost == other.remoteHost && remotePort == other.remotePort
     }
 }
 
@@ -140,7 +150,8 @@ struct Tunnel: Identifiable, Codable, Hashable {
     func hasSameConnection(as other: Tunnel) -> Bool {
         host == other.host &&
         port == other.port &&
-        portMappings == other.portMappings &&
+        portMappings.count == other.portMappings.count &&
+        zip(portMappings, other.portMappings).allSatisfy { $0.hasSameConnection(as: $1) } &&
         identityFile == other.identityFile &&
         useAlias == other.useAlias &&
         connectTimeout == other.connectTimeout &&

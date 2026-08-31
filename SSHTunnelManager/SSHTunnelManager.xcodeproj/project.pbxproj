@@ -19,6 +19,10 @@
 		A10009 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10009; };
 		A10010 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B10010; };
 		A10012 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = B10012; };
+		A10014 /* WebProxyManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10014; };
+		A10015 /* WebDomainsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10015; };
+		A10016 /* ThirdPartyNotices.txt in Resources */ = {isa = PBXBuildFile; fileRef = B10016; };
+		A10020 /* LocalWebProxy in Frameworks */ = {isa = PBXBuildFile; productRef = Q10001; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -36,6 +40,9 @@
 		B10011 /* SSHTunnelManager.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = SSHTunnelManager.entitlements; sourceTree = "<group>"; };
 		B10012 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		C10001 /* SSHTunnelManager.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SSHTunnelManager.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		B10014 /* WebProxyManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebProxyManager.swift; sourceTree = "<group>"; };
+		B10015 /* WebDomainsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebDomainsView.swift; sourceTree = "<group>"; };
+		B10016 /* ThirdPartyNotices.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = ThirdPartyNotices.txt; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -43,6 +50,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A10020 /* LocalWebProxy in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -67,6 +75,7 @@
 				E10009 /* Resources */,
 				B10010 /* Assets.xcassets */,
 				B10012 /* Localizable.xcstrings */,
+				B10016 /* ThirdPartyNotices.txt */,
 				B10011 /* SSHTunnelManager.entitlements */,
 			);
 			path = SSHTunnelManager;
@@ -93,6 +102,7 @@
 			children = (
 				B10003 /* ConfigStore.swift */,
 				B10004 /* TunnelManager.swift */,
+				B10014 /* WebProxyManager.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -137,6 +147,7 @@
 				B10009 /* ContentView.swift */,
 				B10007 /* TunnelListView.swift */,
 				B10008 /* TunnelDetailView.swift */,
+				B10015 /* WebDomainsView.swift */,
 			);
 			path = MainWindow;
 			sourceTree = "<group>";
@@ -151,12 +162,14 @@
 				F10002 /* Sources */,
 				D10001 /* Frameworks */,
 				F10003 /* Resources */,
+				F10004 /* Build Port Authorization Helper */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 			);
 			name = SSHTunnelManager;
+			packageProductDependencies = (Q10001 /* LocalWebProxy */,);
 			productName = SSHTunnelManager;
 			productReference = C10001 /* SSHTunnelManager.app */;
 			productType = "com.apple.product-type.application";
@@ -186,6 +199,7 @@
 			);
 			mainGroup = E10001;
 			productRefGroup = E10003 /* Products */;
+			packageReferences = (P10001 /* LocalWebProxy */,);
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -201,10 +215,25 @@
 			files = (
 				A10010 /* Assets.xcassets in Resources */,
 				A10012 /* Localizable.xcstrings in Resources */,
+				A10016 /* ThirdPartyNotices.txt in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		F10004 /* Build Port Authorization Helper */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = ();
+			inputPaths = ("$(SRCROOT)/../packaging/build-port-helper.sh", "$(SRCROOT)/LocalWebProxy/Sources/PortSocketSupport/PortSocketSupport.c", "$(SRCROOT)/LocalWebProxy/Sources/PortSocketSupport/include/PortSocketSupport.h",);
+			name = "Build Port Authorization Helper";
+			outputPaths = ("$(TARGET_BUILD_DIR)/$(CONTENTS_FOLDER_PATH)/Helpers/web-proxy-bind",);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "/bin/sh \"$SRCROOT/../packaging/build-port-helper.sh\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		F10002 /* Sources */ = {
@@ -215,6 +244,8 @@
 				A10002 /* Tunnel.swift in Sources */,
 				A10003 /* ConfigStore.swift in Sources */,
 				A10004 /* TunnelManager.swift in Sources */,
+				A10014 /* WebProxyManager.swift in Sources */,
+				A10015 /* WebDomainsView.swift in Sources */,
 				A10005 /* StatusIndicator.swift in Sources */,
 				A10006 /* MenuBarView.swift in Sources */,
 				A10013 /* MenuBarWindowResizer.swift in Sources */,
@@ -225,6 +256,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		P10001 /* LocalWebProxy */ = {isa = XCLocalSwiftPackageReference; relativePath = LocalWebProxy; };
+/* End XCLocalSwiftPackageReference section */
+/* Begin XCSwiftPackageProductDependency section */
+		Q10001 /* LocalWebProxy */ = {isa = XCSwiftPackageProductDependency; productName = LocalWebProxy; };
+/* End XCSwiftPackageProductDependency section */
 
 /* Begin XCBuildConfiguration section */
 		G10002 /* Debug */ = {
@@ -362,7 +400,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.10.0;
 				PRODUCT_BUNDLE_IDENTIFIER = io.github.0fuz.SSHTunnelManager;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -390,7 +428,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.10.0;
 				PRODUCT_BUNDLE_IDENTIFIER = io.github.0fuz.SSHTunnelManager;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
