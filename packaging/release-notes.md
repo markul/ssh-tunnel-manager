@@ -1,9 +1,8 @@
 ## Custom HTTP domains for SSH tunnels
 
-This release includes a fix for helper signing in clean, sandboxed Xcode builds.
-
 Assign a `.test` hostname to a local port mapping and open forwarded web apps at
-addresses such as `http://research.test` instead of remembering a localhost port.
+addresses such as `http://research-3600.test/monitoring` instead of
+`http://localhost:55355/monitoring`. The original localhost URL still works.
 
 - Integrated SwiftNIO HTTP proxy with streaming and WebSocket support; no Caddy installation required.
 - Loopback-only listener and upstream connections. No public sharing or LAN listener is added.
@@ -11,6 +10,13 @@ addresses such as `http://research.test` instead of remembering a localhost port
 - HTTP enablement is remembered and restored automatically on launch.
 - Domain-only edits preserve SSH connections; disconnected or replaced tunnels revoke their proxy connections.
 - Existing tunnel configurations remain compatible.
+- Includes fixes for helper compilation and signing in clean, sandboxed Xcode builds.
+
+### Feature screenshots
+
+![Web domain in tunnel settings](https://raw.githubusercontent.com/markul/ssh-tunnel-manager/main/.github/web-domain-settings.png)
+
+*App screenshot with hostnames, domain names, and ports replaced by example values.*
 
 ### Installation
 
@@ -20,14 +26,23 @@ and Intel binaries and requires macOS 14 or later. It is ad-hoc signed, not nota
 
 ### Setup and limitations
 
-Set a local mapping's **Web domain**, save it, then open **Preferences → Web domains**
-to enable HTTP and apply hostname entries. Use an explicit `http://` URL.
+1. Set a local forward's **Web domain (optional)** to `research-3600.test` and save.
+2. Open **Preferences → Web domains**, enable HTTP, and apply hostname entries.
+3. Approve the macOS administrator prompt, connect the tunnel, and open
+   **http://research-3600.test**. Use an explicit `http://` URL.
+
+A mapping from Mac `127.0.0.1:55355` to server `127.0.0.1:3000` now serves the
+same web app at the named address. Each mapping can have a unique `.test` hostname.
 
 On Macs that restrict port 80, macOS requests administrator authorization. A temporary
 helper binds the app's socket to `127.0.0.1:80` and exits; no privileged daemon is installed.
 Automatic restoration may still show the administrator prompt after an app restart.
 HTTPS and `.local` names are not supported. Applications that call a separate backend
-may need their new frontend origin added to the backend's CORS allowlist.
+need their API port forward connected and may need the exact new frontend origin,
+for example `http://research-3600.test` without a path, added to the backend's CORS
+allowlist. The proxy does not rewrite frontend API URLs or bypass browser security.
+
+See the [full setup, CORS, and troubleshooting guide](https://github.com/markul/ssh-tunnel-manager#local-web-domains-http-only).
 
 ### Verification
 
