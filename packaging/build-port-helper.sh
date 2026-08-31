@@ -3,9 +3,10 @@ set -eu
 
 source_dir="$SRCROOT/LocalWebProxy/Sources/PortSocketSupport"
 output="$TARGET_BUILD_DIR/$CONTENTS_FOLDER_PATH/Helpers/web-proxy-bind"
-# codesign creates a sibling .cstemp file. Sign in Xcode's writable staging
-# directory, then copy only the declared output into the app bundle.
-staged_output="$DERIVED_FILE_DIR/web-proxy-bind"
+# codesign and lipo create sibling temporary files. Xcode permits scratch
+# writes in TEMP_DIR; DERIVED_FILE_DIR still requires declared outputs.
+# Copy only the finished, declared output into the app bundle.
+staged_output="$TEMP_DIR/web-proxy-bind"
 /bin/mkdir -p "$(/usr/bin/dirname "$output")"
 set --
 for architecture in $ARCHS; do
