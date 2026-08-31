@@ -1,5 +1,7 @@
 ## Custom HTTP domains for SSH tunnels
 
+This release includes a fix for helper signing in clean, sandboxed Xcode builds.
+
 Assign a `.test` hostname to a local port mapping and open forwarded web apps at
 addresses such as `http://research.test` instead of remembering a localhost port.
 
