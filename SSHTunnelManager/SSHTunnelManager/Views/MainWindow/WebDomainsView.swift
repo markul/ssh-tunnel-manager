@@ -10,7 +10,9 @@ struct WebDomainsView: View {
             Text("Web domains").font(.headline)
             Text(proxy.status).font(.callout)
                 .foregroundStyle(proxy.isRunning ? .primary : .secondary)
-            Text("HTTP only, accessible from this Mac. Assign .test names in a local port mapping, then apply hostname changes here.")
+            Text("HTTP only, accessible from this Mac. Assign .test or .prod names in a local port mapping. Once enabled, later hostname changes are applied automatically.")
+                .font(.caption).foregroundStyle(.secondary)
+            Text(".prod is a public domain suffix. A name you assign here overrides that exact hostname on this Mac while its hosts entry exists.")
                 .font(.caption).foregroundStyle(.secondary)
             if !proxy.domains.isEmpty {
                 ScrollView {
@@ -40,13 +42,13 @@ struct WebDomainsView: View {
                     .disabled(proxy.domains.isEmpty || proxy.isRunning)
                 }
             }
-            Toggle("Request port authorization automatically at launch", isOn: Binding(
+            Toggle("Restore HTTP and apply domain changes automatically", isOn: Binding(
                 get: { proxy.automaticallyEnableHTTP },
                 set: { proxy.automaticallyEnableHTTP = $0 }
             )).font(.caption)
-            Text("After HTTP is enabled, the app restores it on launch. macOS may still ask for administrator authorization. Cancelling leaves HTTP off until you retry or restart the app.")
+            Text("After HTTP is enabled, the app restores it on launch and applies domain edits automatically. macOS may still ask for administrator authorization. Cancelling leaves the current entries unchanged until you retry or edit the domains again.")
                 .font(.caption).foregroundStyle(.secondary)
-            Text("Applying changes asks for macOS administrator authorization to update only this app’s block in /etc/hosts. Removing all web domains and applying again removes that block.")
+            Text("The manual button retries a cancelled update. The app changes only its managed block in /etc/hosts; removing every web domain removes that block after authorization.")
                 .font(.caption).foregroundStyle(.secondary)
         }
         .padding(16)

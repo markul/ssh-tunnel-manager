@@ -98,12 +98,13 @@ struct TunnelMenuItem: View {
     }
 
     var body: some View {
-        HStack {
+        HStack(alignment: .top, spacing: 8) {
             Circle()
                 .fill(statusColor)
                 .frame(width: 8, height: 8)
+                .padding(.top, 6)
 
-            VStack(alignment: .leading, spacing: 1) {
+            VStack(alignment: .leading, spacing: 3) {
                 Text(tunnel.name)
                     .lineLimit(1)
                     .truncationMode(.tail)
@@ -117,15 +118,24 @@ struct TunnelMenuItem: View {
                         .lineLimit(2)
                         .truncationMode(.tail)
                 }
+
+                if lastError == nil {
+                    VStack(alignment: .leading, spacing: 3) {
+                        ForEach(tunnel.portMappings) { mapping in
+                            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                                Text(portLabel(for: mapping))
+                                    .monospacedDigit()
+                                Text(hostnameLabel(for: mapping))
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
+                    }
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+                }
             }
 
             Spacer(minLength: 8)
-
-            if lastError == nil {
-                Text(tunnel.localPortsSummary)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
 
             Toggle("", isOn: Binding(
                 get: { isOn },
@@ -134,10 +144,28 @@ struct TunnelMenuItem: View {
             .toggleStyle(.switch)
             .controlSize(.mini)
             .labelsHidden()
+            .padding(.top, 1)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 4)
         .help(lastError ?? "")
+    }
+
+    private func portLabel(for mapping: PortMapping) -> String {
+        switch mapping.forward {
+        case .remote: return "R \(mapping.remotePort):"
+        case .local, .dynamic: return "\(mapping.localPort):"
+        }
+    }
+
+    private func hostnameLabel(for mapping: PortMapping) -> String {
+        switch mapping.forward {
+        case .local:
+            let domain = mapping.webDomain?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            return domain.isEmpty ? mapping.remoteHost : domain
+        case .remote: return mapping.localHost
+        case .dynamic: return "SOCKS proxy"
+        }
     }
 }
 

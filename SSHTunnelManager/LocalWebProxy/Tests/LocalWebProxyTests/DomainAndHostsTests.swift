@@ -11,6 +11,7 @@ final class DomainAndHostsTests: XCTestCase {
 
     func testDomainValidation() throws {
         XCTAssertEqual(try WebDomain.normalize(" Research-3600.TEST \n"), "research-3600.test")
+        XCTAssertEqual(try WebDomain.normalize(" Artifacts.PROD \n"), "artifacts.prod")
         for input in ["example.com", "test", "foo.local", "http://foo.test", "foo.test:80", "foo.test/path",
                       "-foo.test", "foo-.test", "foo..test", "foo.test\n127.0.0.1 bad.test", "$(touch bad).test", "é.test"] {
             XCTAssertThrowsError(try WebDomain.normalize(input), input)
@@ -19,11 +20,11 @@ final class DomainAndHostsTests: XCTestCase {
 
     func testHostsUpdatePreservesUnrelatedEntriesAndRemovesOnlyManagedNames() throws {
         try withHosts("127.0.0.1 localhost\n192.0.2.1 office.test # keep\n") { url in
-            try apply(["research-3600.test", "another.test"], to: url)
+            try apply(["research-3600.test", "another.prod"], to: url)
             var contents = try String(contentsOf: url)
             XCTAssertTrue(contents.contains("192.0.2.1 office.test # keep"))
-            XCTAssertEqual(try HostsFile.managedDomains(in: contents), ["research-3600.test", "another.test"])
-            try apply(["another.test"], to: url)
+            XCTAssertEqual(try HostsFile.managedDomains(in: contents), ["research-3600.test", "another.prod"])
+            try apply(["another.prod"], to: url)
             contents = try String(contentsOf: url)
             XCTAssertFalse(contents.contains("research-3600.test"))
             try apply([], to: url)

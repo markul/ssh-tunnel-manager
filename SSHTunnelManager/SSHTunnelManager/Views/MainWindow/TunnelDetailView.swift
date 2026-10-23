@@ -637,7 +637,7 @@ struct PortMappingEditor: View {
                 ), prompt: Text("research-3600.test"))
                 .textFieldStyle(.roundedBorder)
                 .focused($focusedField, equals: .mappingWebDomain(mapping.id))
-                Text("HTTP only on this Mac. Save, then apply hostnames in Preferences → Web domains. Leave blank to use the port directly.")
+                Text("HTTP only on this Mac. Use a .test or .prod name. After HTTP is enabled, saving updates hostnames automatically. Leave blank to use the port directly.")
                     .font(.caption).foregroundStyle(.secondary)
                 if let error = WebProxyManager.validationError(for: mapping) {
                     Text(error).font(.caption).foregroundStyle(.red)

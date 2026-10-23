@@ -47,7 +47,7 @@ This app solves that. Configure once, connect with one click.
 - **Port-conflict guard** — warns when two tunnels want the same local port and stops them from clobbering each other
 - **Per-tunnel tuning** — `ConnectTimeout`, keepalive, compression, "survive brief network drops", host-key options, and a free-text field for any other ssh flags
 - **SSH config aliases** — reuse hosts from your `~/.ssh/config`
-- **Custom HTTP domains** — assign a `.test` name to each local web forward; use `http://research-3600.test` instead of `http://localhost:55355`
+- **Custom HTTP domains** — assign a `.test` or `.prod` name to each local web forward; use `http://research-3600.test` instead of `http://localhost:55355`
 - **Built-in web proxy** — HTTP streaming and WebSockets, with no Caddy installation; HTTP enablement is remembered across launches
 - **Launch at login** — start tunnels when your Mac boots
 - **Auto-connect** — mark tunnels to connect automatically on app launch
@@ -138,8 +138,12 @@ For example, if your Mac forwards `127.0.0.1:55355` to an HTTP server at
 | `http://localhost:55355/monitoring` | `http://research-3600.test/monitoring` |
 
 The existing localhost URL continues to work. Each local forward can have its
-own unique `.test` hostname. No Caddy installation or external DNS service is
+own unique `.test` or `.prod` hostname. No Caddy installation or external DNS service is
 needed.
+
+`.prod` is a public domain suffix. A name assigned here overrides that exact
+hostname on this Mac while the app's `/etc/hosts` entry exists. Use `.test` if
+you want a name reserved for local testing.
 
 <p align="center">
   <img src=".github/web-domain-settings.png" width="95%" alt="SSH Tunnel Manager settings showing research-3600.test forwarding local port 55355 to remote port 3000">
@@ -152,11 +156,13 @@ needed.
 1. Open the tunnel's settings and find its **Local Forward** mapping. Prefer
    `127.0.0.1` as the local listening address to keep the SSH port private to
    this Mac.
-2. Enter `research-3600.test` in **Web domain (optional)** and save. Enter only
+2. Enter `research-3600.test` (or a `.prod` name) in **Web domain (optional)** and save. Enter only
    the hostname: no `http://`, port number, or path.
 3. Open **Preferences → Web domains** from the sidebar's gear button. Click
-   **Enable HTTP and apply hostnames…**, or **Apply hostnames…** if HTTP is
-   already available. Approve the macOS administrator prompt.
+   **Enable HTTP and apply hostnames…** and approve the macOS administrator
+   prompt. Later domain edits update the managed hostname entries automatically
+   when automatic restoration is enabled. Use **Apply hostnames…** to retry
+   after a cancelled prompt.
 4. Connect the SSH tunnel and open **http://research-3600.test** in your browser.
    Paths and query strings are forwarded to the web app.
 
@@ -176,8 +182,8 @@ A small bundled helper binds an app-created socket only to `127.0.0.1:80`, then
 exits. The app retains the socket and processes HTTP; no privileged daemon is
 installed. Cancelling authorization leaves HTTP off and does not trigger
 repeated prompts during that session. Retry with **Enable HTTP and apply
-hostnames…** in Web domains. You can disable **Request port authorization
-automatically at launch** there.
+hostnames…** in Web domains. You can disable **Restore HTTP and apply domain
+changes automatically** there.
 
 #### Frontends with a separate backend (CORS)
 

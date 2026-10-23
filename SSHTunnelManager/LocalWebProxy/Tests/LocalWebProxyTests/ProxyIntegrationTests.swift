@@ -137,9 +137,9 @@ final class ProxyIntegrationTests: XCTestCase {
         let port = try await proxy.start(port: 0)
         try await proxy.setRoutes([
             WebRoute(domain: "one.test", port: backend.localAddress!.port!, available: true),
-            WebRoute(domain: "two.test", port: backend.localAddress!.port!, available: true)
+            WebRoute(domain: "two.prod", port: backend.localAddress!.port!, available: true)
         ])
-        for domain in ["one.test", "two.test"] {
+        for domain in ["one.test", "two.prod"] {
             let reply = group.next().makePromise(of: String.self)
             let client = try await ClientBootstrap(group: group).channelInitializer { channel in
                 channel.pipeline.addHandler(CollectBytes(promise: reply))

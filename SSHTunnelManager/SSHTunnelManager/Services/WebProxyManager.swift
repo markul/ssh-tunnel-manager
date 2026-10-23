@@ -27,6 +27,7 @@ final class WebProxyManager {
     private var stopped = false
     private var authorizingPort = false
     private var attemptedAutomaticAuthorization = false
+    private var lastAutomaticHostsSnapshot: Set<String>?
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -122,6 +123,7 @@ final class WebProxyManager {
             }
             updateTask = nil
             restoreHTTPIfNeeded()
+            applyHostnamesIfNeeded()
         }
     }
 
@@ -129,6 +131,18 @@ final class WebProxyManager {
         guard automaticallyEnableHTTP, needsPortAuthorization, !attemptedAutomaticAuthorization,
               !authorizingPort, !applyingHosts, !stopped, !domains.isEmpty else { return }
         enableHTTP()
+    }
+
+    private func applyHostnamesIfNeeded() {
+        let snapshot = Set(domains)
+        guard automaticallyEnableHTTP, hostsNeedUpdate, hostsError == nil,
+              !applyingHosts, !authorizingPort, !stopped,
+              lastAutomaticHostsSnapshot != snapshot else { return }
+        // Avoid repeatedly asking for authorization after cancellation while
+        // tunnel status changes. Editing the domain set enables another try,
+        // and the manual button remains available for an immediate retry.
+        lastAutomaticHostsSnapshot = snapshot
+        applyHostnames()
     }
 
     func stop() {
@@ -189,7 +203,7 @@ final class WebProxyManager {
         }
     }
 
-    /// Invoked only by an explicit UI action. The OS owns the password prompt.
+    /// Updates the managed hosts block. The OS owns the password prompt.
     func applyHostnames() {
         guard !applyingHosts else { return }
         let snapshot = domains
@@ -220,7 +234,12 @@ final class WebProxyManager {
             } catch {
                 hostsError = error.localizedDescription
             }
+            let domainsChangedWhileApplying = Set(domains) != Set(snapshot)
             applyingHosts = false
+            if domainsChangedWhileApplying {
+                refreshHostsStatus()
+                scheduleUpdate()
+            }
         }
     }
 }
